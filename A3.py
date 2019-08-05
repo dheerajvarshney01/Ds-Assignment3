@@ -11,7 +11,11 @@ import os
 
 df_aisData=pd.read_csv(r'D:\Studies\DalhousieUniversity\Summer2019\DataScience\A3\AISData.csv')
 ## drop the column that is same as index in data frame:
-df_aisData = df_aisData.drop('Unnamed: 0', axis=1)
+df_aisData.drop('Unnamed: 0', axis=1, inplace=True)
+## drop duplicates:
+df_aisData.drop_duplicates(subset=None, keep='first', inplace=True)
+## drop unused columns:
+df_aisData.drop(['position_accuracy', 'sog', 'cog'], axis=1, inplace=True)
 
 ## rename columns:
 columnsList = list(df_aisData.columns)
@@ -67,20 +71,49 @@ print(allPoinsWithinEnvelopes.mmsi.unique())
 import matplotlib.cm as cm
 from matplotlib.colors import SymLogNorm
 import matplotlib.pyplot as plt
-cmap = cm.copper
-norm = SymLogNorm(linthresh=0.03, linscale=1, vmin=1, vmax=gdf_ais.shape[0])
-fig, ax = plt.subplots(1, figsize=(15, 8))
-for port_name in set(gdf_shapes.port_name):
-    port = gdf_shapes.loc[gdf_shapes.port_name==port_name,:]
-    port_area = port.geometry
-    signalsWithinPortArea = gdf_ais.loc[gdf_ais.within(port_area.values[0].envelope),:]
-    numberOfSignals = signalsWithinPortArea.shape[0]
-    port.plot(ax=ax,color = cmap(norm(numberOfSignals)))
-    ax.axis('off')
-    ax.set_title('Density of AIS port messages', fontdict={'fontsize': '25', 'fontweight': '3'})
-plot_val = plt.cm.ScalarMappable(cmap='copper', norm=norm)
-plot_bar = fig.colorbar(plot_val)
+cmap = cm.YlOrRd
+
+def getNumOfSignalsAndPortByPortName(gdf_ais, gdf_shapes, port_name):
+        port = gdf_shapes.loc[gdf_shapes.port_name==port_name,:]
+        port_area = port.geometry
+        signalsWithinPortArea = gdf_ais.loc[gdf_ais.within(port_area.values[0].envelope),:]
+        numberOfSignals = signalsWithinPortArea.shape[0]
+        return numberOfSignals, port
+
+def preparePlot(gdf_ais, gdf_shapes):
+    norm = SymLogNorm(linthresh=0.03, linscale=1, vmin=1, vmax=gdf_ais.shape[0])
+    fig, ax = plt.subplots(1, figsize=(15, 8))
+    for port_name in set(gdf_shapes.port_name):
+        numberOfSignals, port = getNumOfSignalsAndPortByPortName(gdf_ais, gdf_shapes,port_name)
+        port.plot(ax=ax,color = cmap(norm(numberOfSignals)))
+        ax.axis('off')
+        ax.set_title('Density of AIS port messages', fontdict={'fontsize': '25', 'fontweight': '3'})
+    plot_val = plt.cm.ScalarMappable(cmap='YlOrRd', norm=norm)
+    plot_bar = fig.colorbar(plot_val)
+
+preparePlot(gdf_ais, gdf_shapes)
 plt.show()
 
+## Q3:
+# Sort records in gdf_ais by time:
+gdf_ais.sort_values(by = ['time'], ascending=True, inplace=True, kind='quicksort', na_position='last')
+# Reset and drop index:
+gdf_ais.reset_index(drop=True, inplace=True)
+
+gdf_ais['hour'] = gdf_ais['time'].apply(lambda x: x[:-11])
+uniqueHours = list(gdf_ais['hour'].unique())
+
+gdf_aisByHour = []
+for hour in uniqueHours:
+    gdf_aisByHour.append(gdf_ais.loc[gdf_ais['hour'] == hour])
+
+# We create plots, but we don't show thwm becaust they are 2529 plots.
+hourlyDensities = []
+
+
+# Q4:
+# port of interest - 'southend container terminal'/'ind'/'auto_port'/'pointpolygon'
+portOfInterest = 'southend container terminal'
+gdf_aisPortOfInterest = gdf_ais.loc[gdf_ais['port_name'] == portOfInterest]
 
 
