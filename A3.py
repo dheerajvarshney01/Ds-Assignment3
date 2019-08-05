@@ -7,7 +7,7 @@ import missingno as msn
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
-import os
+import os, sys
 
 df_aisData=pd.read_csv(r'D:\Studies\DalhousieUniversity\Summer2019\DataScience\A3\AISData.csv')
 ## drop the column that is same as index in data frame:
@@ -31,14 +31,9 @@ gdf_ais = gpd.GeoDataFrame(df_aisData, crs={'init': 'epsg:4326'},
 ## read shape file into GeoDataFrame object (that contains GeoSeries objects):
 gdf_shapes=gpd.read_file(
     r'D:\Studies\DalhousieUniversity\Summer2019\DataScience\A3\Nima_Ports\assignment3shapefile.shp')
-##gdf_shapes = gdf_shapes.set_index('port_name')
-
-##portOfInterest = 'port7'
-##port = gdf_shapes.loc[gdf_shapes.port_name==portOfInterest,:]
-##port_area = port.geometry
-##gdf_ais = gdf_ais.loc[~gdf_ais.within(port_area.values[0].envelope),:]
 
 ## Q1
+print("******************************* Q1 *************************************")
 ## Plot shapes of ports:
 gdf_shapes.plot()
 plt.show()
@@ -68,11 +63,12 @@ allPoinsWithinEnvelopes = pointsWithinEnvelopes[0]
 for points in pointsWithinEnvelopes[1:]:
     allPoinsWithinEnvelopes.append(points)
 
-## Only one vessle exists in the dataset, hence only one vessle foubd
+## Only one vessle exists in the dataset, hence only one vessle found
 print(allPoinsWithinEnvelopes.mmsi.unique())
 
 
 ## Q2:
+print("******************************* Q2 *************************************")
 import matplotlib.cm as cm
 from matplotlib.colors import SymLogNorm
 import matplotlib.pyplot as plt
@@ -88,7 +84,7 @@ def preparePlot(gdf_ais, gdf_shapes):
         numberOfSignals = signalsWithinPortArea.shape[0]
         port.plot(ax=ax,color = cmap(norm(numberOfSignals)))
         ax.axis('off')
-        ax.set_title('Density of AIS port messages', fontdict={'fontsize': '25', 'fontweight': '3'})
+        ax.set_title('Density of AIS port messages (log10 scale)', fontdict={'fontsize': '25', 'fontweight': '3'})
     plot_val = plt.cm.ScalarMappable(cmap='YlOrRd', norm=norm)
     plot_bar = fig.colorbar(plot_val)
 
@@ -96,6 +92,7 @@ preparePlot(gdf_ais, gdf_shapes)
 plt.show()
 
 ## Q3:
+print("******************************* Q3 *************************************")
 # Sort records in gdf_ais by time:
 gdf_ais.sort_values(by = ['time'], ascending=True, inplace=True, kind='quicksort', na_position='last')
 # Reset and drop index:
@@ -108,11 +105,22 @@ gdf_aisByHour = []
 for hour in uniqueHours:
     gdf_aisByHour.append(gdf_ais.loc[gdf_ais['hour'] == hour])
 
-# We create plots, but we don't show thwm becaust they are 2529 plots.
-hourlyDensities = []
+# We create plots and save 10 first of them to the disk.
+# We don't save all of them because they are 2529.
+i=0
+for gdf in gdf_aisByHour:
+    if i > 10:
+        break
+    preparePlot(gdf, gdf_shapes)
+    fileName = os.path.dirname(sys.argv[0]) + "\\Q3Figures\\" +str(i)
+    plt.savefig(fileName + ".png")
+    plt.close()
+    i += 1
 
 
-# Q4:
+
+## Q4:
+print("******************************* Q4 *************************************")
 # port of interest - 'port7'/'southend container terminal'/'ind'/'auto_port'/'pointpolygon'
 portOfInterest = 'port7'
 port = gdf_shapes.loc[gdf_shapes.port_name==portOfInterest,:]
@@ -125,7 +133,25 @@ for hour in uniqueHours:
 
 
 hours = range(0, len(uniqueHours), 1)
-plt.plot(hours,gdf_aisByHourPortOfInterest)
+
+plt.plot(hours, gdf_aisByHourPortOfInterest)
 plt.show()
 
 
+## Q5
+print("******************************* Q5 *************************************")
+## reference - lab 7
+import numpy as np
+from skmultiflow.drift_detection.adwin import ADWIN
+adwin = ADWIN()
+
+for i in hours:
+    adwin.add_element(gdf_aisByHourPortOfInterest[i])
+    if adwin.detected_change():
+        print('Change detected in data: ' + str(gdf_aisByHourPortOfInterest[i]) + ' - at index: ' + str(i))
+
+
+## Q6
+print("******************************* Q6 *************************************")
+# Clustering ports based on message density. We are using data from Q1 where
+from sklearn.cluster import DBSCAN
