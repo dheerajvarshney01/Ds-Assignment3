@@ -33,6 +33,11 @@ gdf_shapes=gpd.read_file(
     r'D:\Studies\DalhousieUniversity\Summer2019\DataScience\A3\Nima_Ports\assignment3shapefile.shp')
 ##gdf_shapes = gdf_shapes.set_index('port_name')
 
+##portOfInterest = 'port7'
+##port = gdf_shapes.loc[gdf_shapes.port_name==portOfInterest,:]
+##port_area = port.geometry
+##gdf_ais = gdf_ais.loc[~gdf_ais.within(port_area.values[0].envelope),:]
+
 ## Q1
 ## Plot shapes of ports:
 gdf_shapes.plot()
@@ -73,18 +78,14 @@ from matplotlib.colors import SymLogNorm
 import matplotlib.pyplot as plt
 cmap = cm.YlOrRd
 
-def getNumOfSignalsAndPortByPortName(gdf_ais, gdf_shapes, port_name):
-        port = gdf_shapes.loc[gdf_shapes.port_name==port_name,:]
-        port_area = port.geometry
-        signalsWithinPortArea = gdf_ais.loc[gdf_ais.within(port_area.values[0].envelope),:]
-        numberOfSignals = signalsWithinPortArea.shape[0]
-        return numberOfSignals, port
-
 def preparePlot(gdf_ais, gdf_shapes):
     norm = SymLogNorm(linthresh=0.03, linscale=1, vmin=1, vmax=gdf_ais.shape[0])
     fig, ax = plt.subplots(1, figsize=(15, 8))
     for port_name in set(gdf_shapes.port_name):
-        numberOfSignals, port = getNumOfSignalsAndPortByPortName(gdf_ais, gdf_shapes,port_name)
+        port = gdf_shapes.loc[gdf_shapes.port_name==port_name,:]
+        port_area = port.geometry
+        signalsWithinPortArea = gdf_ais.loc[gdf_ais.within(port_area.values[0].envelope),:]
+        numberOfSignals = signalsWithinPortArea.shape[0]
         port.plot(ax=ax,color = cmap(norm(numberOfSignals)))
         ax.axis('off')
         ax.set_title('Density of AIS port messages', fontdict={'fontsize': '25', 'fontweight': '3'})
@@ -112,8 +113,19 @@ hourlyDensities = []
 
 
 # Q4:
-# port of interest - 'southend container terminal'/'ind'/'auto_port'/'pointpolygon'
-portOfInterest = 'southend container terminal'
-gdf_aisPortOfInterest = gdf_ais.loc[gdf_ais['port_name'] == portOfInterest]
+# port of interest - 'port7'/'southend container terminal'/'ind'/'auto_port'/'pointpolygon'
+portOfInterest = 'port7'
+port = gdf_shapes.loc[gdf_shapes.port_name==portOfInterest,:]
+port_area = port.geometry
+signalsWithinPortArea = gdf_ais.loc[gdf_ais.within(port_area.values[0].envelope),:]
+
+gdf_aisByHourPortOfInterest = []
+for hour in uniqueHours:
+    gdf_aisByHourPortOfInterest.append(signalsWithinPortArea.loc[signalsWithinPortArea['hour'] == hour].shape[0])
+
+
+hours = range(0, len(uniqueHours), 1)
+plt.plot(hours,gdf_aisByHourPortOfInterest)
+plt.show()
 
 
